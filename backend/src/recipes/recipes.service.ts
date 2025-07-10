@@ -64,6 +64,56 @@ export class RecipesService {
         }
     }
 
+    async getDietaryRestrictions(): Promise<string[]> {
+        try {
+            const records = await this.airtableService.getRecords(this.recipesTable, {});
+            const allRestrictions = new Set<string>();
+            
+            records.forEach(record => {
+                if (record.fields.dietary_restrictions) {
+                    if (Array.isArray(record.fields.dietary_restrictions)) {
+                        record.fields.dietary_restrictions.forEach((restriction: string) => {
+                            if (restriction && restriction.trim()) {
+                                allRestrictions.add(restriction.trim());
+                            }
+                        });
+                    }
+                    else if (typeof record.fields.dietary_restrictions === 'string') {
+                        const restrictions = record.fields.dietary_restrictions.split(',').map(r => r.trim());
+                        restrictions.forEach(restriction => {
+                            if (restriction && restriction.trim()) {
+                                allRestrictions.add(restriction.trim());
+                            }
+                        });
+                    }
+                }
+            });
+            
+            let result = Array.from(allRestrictions).sort();
+            
+            // Si aucune restriction n'est trouvée en base, utiliser la liste par défaut
+            if (result.length === 0) {
+                result = [
+                    'Végétarien',
+                    'Vegan',
+                    'Végétalien',
+                    'Sans gluten',
+                    'Sans lactose',
+                    'Halal',
+                    'Casher',
+                    'Sans sucre',
+                    'Cétogène',
+                    'Paleo',
+                    'Sans noix'
+                ];
+            }
+            
+            return result;
+        } catch (error) {
+            throw new Error(`Failed to fetch dietary restrictions: ${error.message}`);
+        }
+    }
+
     async findOne(id: string): Promise<RecipeWithNutrition> {
         try {
             const recipeRecord = await this.airtableService.getRecord(this.recipesTable, id);
@@ -99,6 +149,7 @@ export class RecipesService {
 
     async create(createRecipeDto: CreateRecipeDto): Promise<RecipeWithNutrition> {
         try {
+            console.log('Creating recipe with DTO:', createRecipeDto);
             // Generate recipe using AI
             const generatedRecipe = await this.gptService.generateRecipe({
                 ingredients: createRecipeDto.ingredients,
@@ -106,6 +157,7 @@ export class RecipesService {
                 dietaryRestrictions: createRecipeDto.dietaryRestrictions,
                 recipeType: createRecipeDto.recipeType,
             });
+            console.log('Generated Recipe:', generatedRecipe);
 
             // Filtrer les restrictions alimentaires pour ne garder que celles autorisées
             const allowedRestrictions = this.filterAllowedRestrictions(createRecipeDto.dietaryRestrictions || []);
@@ -120,11 +172,10 @@ export class RecipesService {
                 instructions: generatedRecipe.instructions,
                 servings: createRecipeDto.servings,
                 dietary_restrictions: allowedRestrictions,
-                preparation_time: generatedRecipe.preparationTime,
-                cooking_time: generatedRecipe.cookingTime,
+                preparation_time: createRecipeDto.preparationTime ?? generatedRecipe.preparationTime,
+                cooking_time: createRecipeDto.cookingTime ?? generatedRecipe.cookingTime,
             };
             
-            // Only add recipe_type if we have a valid option
             if (validRecipeType) {
                 recipeData.recipe_type = validRecipeType;
             }
@@ -138,7 +189,6 @@ export class RecipesService {
                 servings: createRecipeDto.servings,
             });
 
-            // Try to save nutritional analysis, but don't fail if it doesn't work
             let nutrition: any = null;
             try {
                 const nutritionData = {
@@ -156,7 +206,6 @@ export class RecipesService {
                 nutrition = this.mapAirtableRecordToNutrition(nutritionRecord);
             } catch (nutritionError) {
                 console.warn('Failed to save nutritional analysis:', nutritionError.message);
-                // Create a nutrition object from the analysis without saving to Airtable
                 nutrition = {
                     id: 'temp-' + Date.now(),
                     caloriesPerServing: nutritionAnalysis.caloriesPerServing,
@@ -179,6 +228,7 @@ export class RecipesService {
         const allowedOptions = [
             'Végétarien',
             'Vegan',
+            'Végétalien',
             'Sans gluten',
             'Sans lactose',
             'Halal',
@@ -189,9 +239,17 @@ export class RecipesService {
             'Sans noix'
         ];
 
-        return restrictions.filter(restriction =>
-            allowedOptions.includes(restriction)
-        );
+        // Mapping pour gérer les variations de noms
+        const mapping: Record<string, string> = {
+            'Végétalien': 'Vegan', // Normaliser Végétalien vers Vegan
+        };
+
+        return restrictions.filter(restriction => {
+            const normalizedRestriction = mapping[restriction] || restriction;
+            return allowedOptions.includes(normalizedRestriction);
+        }).map(restriction => {
+            return mapping[restriction] || restriction;
+        });
     }
 
     async generateNutritionForRecipe(id: string) {
@@ -270,16 +328,26 @@ export class RecipesService {
     }
 
     private mapAirtableRecordToRecipe(record: any): Recipe {
-        // Handle ingredients parsing - try JSON first, fallback to comma-separated string
         let ingredients: string[] = [];
         if (record.fields.ingredients) {
             try {
                 ingredients = JSON.parse(record.fields.ingredients);
             } catch (error) {
-                // If JSON parsing fails, treat as comma-separated string
                 ingredients = record.fields.ingredients.split(',').map((ingredient: string) => ingredient.trim());
             }
         }
+
+        let dietaryRestrictions: string[] = [];
+        if (record.fields.dietary_restrictions) {
+            if (Array.isArray(record.fields.dietary_restrictions)) {
+                dietaryRestrictions = record.fields.dietary_restrictions;
+            } else if (typeof record.fields.dietary_restrictions === 'string') {
+                dietaryRestrictions = record.fields.dietary_restrictions.split(',').map(r => r.trim());
+            }
+        }
+        console.log('dietaryRestrictions', dietaryRestrictions);
+        console.log('preparationTime', record.fields.preparation_time);
+        console.log('cookingTime', record.fields.cooking_time);
 
         return {
             id: record.id,
@@ -287,7 +355,7 @@ export class RecipesService {
             ingredients: ingredients,
             instructions: record.fields.instructions,
             servings: record.fields.servings,
-            dietaryRestrictions: record.fields.dietary_restrictions || [],
+            dietaryRestrictions: dietaryRestrictions,
             recipeType: record.fields.recipe_type,
             preparationTime: record.fields.preparation_time,
             cookingTime: record.fields.cooking_time,
@@ -309,10 +377,8 @@ export class RecipesService {
             'Poisson',
             'Viande',
             'Légumes'
-            // Ajoute ici tous les types autorisés dans Airtable
         ];
 
-        // Si tu utilises un mapping (français → anglais), fais-le ici
         const mapping: Record<string, string> = {
             'Appetizer': 'Entrée',
             'Main Course': 'Plat principal',
@@ -320,15 +386,12 @@ export class RecipesService {
             // etc.
         };
 
-        // Si la valeur reçue est déjà autorisée
         if (allowedTypes.includes(recipeType)) {
             return recipeType;
         }
-        // Sinon, essaie de la mapper
         if (mapping[recipeType] && allowedTypes.includes(mapping[recipeType])) {
             return mapping[recipeType];
         }
-        // Sinon, ne rien envoyer
         return null;
     }
 

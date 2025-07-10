@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -12,13 +12,15 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, Plus, X } from "lucide-react";
 import { toast } from 'sonner';
-
+import { api } from "@/lib/api";
 
 const formSchema = z.object({
     ingredients: z.array(z.string()).min(1, "Au moins un ingrédient requis"),
     servings: z.number().min(1).max(12),
     dietaryRestrictions: z.array(z.string()).optional(),
     recipeType: z.enum(["Entrée", "Plat", "Dessert"]),
+    preparationTime: z.number().optional(),
+    cookingTime: z.number().optional(),
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -30,7 +32,9 @@ interface RecipeFormProps {
 
 export function RecipeForm({ onSubmit, isLoading = false }: RecipeFormProps) {
     const [currentIngredient, setCurrentIngredient] = useState("");
-    const [currentRestriction, setCurrentRestriction] = useState("");
+    const [selectedRestriction, setSelectedRestriction] = useState("");
+    const [dietaryRestrictions, setDietaryRestrictions] = useState<string[]>([]);
+    const [loadingRestrictions, setLoadingRestrictions] = useState(true);
 
     const {
         register,
@@ -39,6 +43,7 @@ export function RecipeForm({ onSubmit, isLoading = false }: RecipeFormProps) {
         setValue,
         watch,
         reset,
+        getValues,
     } = useForm<FormData>({
         resolver: zodResolver(formSchema),
         defaultValues: {
@@ -50,7 +55,25 @@ export function RecipeForm({ onSubmit, isLoading = false }: RecipeFormProps) {
     });
 
     const ingredients = watch("ingredients");
-    const dietaryRestrictions = watch("dietaryRestrictions");
+    const selectedDietaryRestrictions = watch("dietaryRestrictions");
+
+    // Charger les restrictions alimentaires depuis l'API
+    useEffect(() => {
+        const loadDietaryRestrictions = async () => {
+            try {
+                const restrictions = await api.getDietaryRestrictions();
+                console.log('Loaded dietary restrictions:', restrictions);
+                setDietaryRestrictions(restrictions);
+            } catch (error) {
+                console.error('Erreur lors du chargement des restrictions alimentaires:', error);
+                toast.error("Impossible de charger les restrictions alimentaires");
+            } finally {
+                setLoadingRestrictions(false);
+            }
+        };
+
+        loadDietaryRestrictions();
+    }, []);
 
     const addIngredient = () => {
         if (currentIngredient.trim()) {
@@ -66,21 +89,30 @@ export function RecipeForm({ onSubmit, isLoading = false }: RecipeFormProps) {
     };
 
     const addRestriction = () => {
-        if (currentRestriction.trim()) {
-            const newRestrictions = [...(dietaryRestrictions || []), currentRestriction.trim()];
+        if (selectedRestriction && !selectedDietaryRestrictions?.includes(selectedRestriction)) {
+            const newRestrictions = [...(selectedDietaryRestrictions || []), selectedRestriction];
             setValue("dietaryRestrictions", newRestrictions);
-            setCurrentRestriction("");
+            setSelectedRestriction("");
         }
     };
 
-    const removeRestriction = (index: number) => {
-        const newRestrictions = (dietaryRestrictions || []).filter((_, i) => i !== index);
+    const removeRestriction = (restriction: string) => {
+        const newRestrictions = (selectedDietaryRestrictions || []).filter((r: string) => r !== restriction);
         setValue("dietaryRestrictions", newRestrictions);
     };
 
     const handleFormSubmit = async (data: FormData) => {
+        console.log('Form data being submitted:', data);
+        console.log('Selected dietary restrictions from state:', selectedDietaryRestrictions);
+        
+        // S'assurer que les restrictions sont bien dans les données
+        const formDataWithRestrictions = {
+            ...data,
+            dietaryRestrictions: selectedDietaryRestrictions || []
+        };
+        
         try {
-            await onSubmit(data);
+            await onSubmit(formDataWithRestrictions);
             reset();
             toast.success("Recette créée avec succès!", {
                 description: "Votre nouvelle recette a été générée par l'IA."
@@ -173,24 +205,29 @@ export function RecipeForm({ onSubmit, isLoading = false }: RecipeFormProps) {
                     <div className="space-y-2">
                         <Label htmlFor="restrictions">Restrictions alimentaires (optionnel)</Label>
                         <div className="flex gap-2">
-                            <Input
-                                id="restrictions"
-                                value={currentRestriction}
-                                onChange={(e) => setCurrentRestriction(e.target.value)}
-                                placeholder="Ex: végétarien, sans gluten, vegan..."
-                                onKeyPress={(e) => e.key === "Enter" && (e.preventDefault(), addRestriction())}
-                            />
-                            <Button type="button" onClick={addRestriction} variant="outline" size="icon">
+                            <Select value={selectedRestriction} onValueChange={setSelectedRestriction} disabled={loadingRestrictions}>
+                                <SelectTrigger className="flex-1">
+                                    <SelectValue placeholder={loadingRestrictions ? "Chargement..." : "Choisir une restriction alimentaire"} />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {dietaryRestrictions.map((restriction) => (
+                                        <SelectItem key={restriction} value={restriction}>
+                                            {restriction}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <Button type="button" onClick={addRestriction} variant="outline" size="icon" disabled={loadingRestrictions}>
                                 <Plus className="h-4 w-4" />
                             </Button>
                         </div>
                         <div className="flex flex-wrap gap-2 mt-2">
-                            {dietaryRestrictions?.map((restriction, index) => (
+                            {selectedDietaryRestrictions?.map((restriction, index) => (
                                 <Badge key={index} variant="outline" className="text-sm">
                                     {restriction}
                                     <button
                                         type="button"
-                                        onClick={() => removeRestriction(index)}
+                                        onClick={() => removeRestriction(restriction)}
                                         className="ml-1 hover:text-red-500"
                                     >
                                         <X className="h-3 w-3" />

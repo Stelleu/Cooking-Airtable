@@ -44,4 +44,12 @@ export class CreateRecipeDto {
     })
     @IsEnum(RecipeType)
     recipeType: RecipeType;
+
+    @IsOptional()
+    @IsNumber()
+    preparationTime?: number;
+
+    @IsOptional()
+    @IsNumber()
+    cookingTime?: number;
 }

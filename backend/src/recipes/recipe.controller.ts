@@ -40,6 +40,13 @@ export class RecipesController {
         return this.recipesService.findAll(searchDto);
     }
 
+    @Get('dietary-restrictions')
+    @ApiOperation({ summary: 'Get all available dietary restrictions' })
+    @ApiResponse({ status: 200, description: 'Dietary restrictions retrieved successfully' })
+    async getDietaryRestrictions() {
+        return this.recipesService.getDietaryRestrictions();
+    }
+
     @Get(':id')
     @ApiOperation({ summary: 'Get a recipe by ID with nutritional analysis' })
     @ApiResponse({ status: 200, description: 'Recipe retrieved successfully' })

@@ -82,7 +82,6 @@ export class GptService implements OnModuleInit {
             );
             const response = (await ask.json()) as GroqResponse;
             
-            // Check for API errors first
             if (response.error) {
                 throw new Error(response.error.message || 'Groq API error');
             }
@@ -128,7 +127,6 @@ export class GptService implements OnModuleInit {
 
             const response = (await ask.json()) as GroqResponse;
             
-            // Check for API errors first
             if (response.error) {
                 throw new Error(response.error.message || 'Groq API error');
             }
@@ -155,11 +153,12 @@ export class GptService implements OnModuleInit {
             RÈGLES IMPORTANTES :
             - Utilise TOUS les ingrédients fournis comme base de la recette
             - Ajoute les ingrédients complémentaires nécessaires (épices, assaisonnements, huile, etc.)
-            - Respecte scrupuleusement toutes les restrictions alimentaires
+            - Respecte scrupuleusement toutes les restrictions alimentaires mentionnées
             - Crée une recette équilibrée et savoureuse
             - Donne des instructions précises étape par étape
             - Indique des quantités réalistes pour chaque ingrédient
-            - Estime des temps de préparation et cuisson réalistes
+            - Estime des temps de préparation et cuisson réalistes selon la complexité de la recette
+            - Les temps doivent varier selon le type de plat et la complexité
             
             FORMAT DE RÉPONSE OBLIGATOIRE (JSON uniquement, sans texte supplémentaire) :
             {
@@ -170,8 +169,8 @@ export class GptService implements OnModuleInit {
                 "1 pincée de [épice]"
               ],
               "instructions": "Étape 1: [action détaillée]\\nÉtape 2: [action détaillée]\\nÉtape 3: [action détaillée]\\n[...autres étapes...]",
-              "preparationTime": [nombre_en_minutes],
-              "cookingTime": [nombre_en_minutes]
+              "preparationTime": [nombre_en_minutes_selon_complexité],
+              "cookingTime": [nombre_en_minutes_selon_cuisson]
             }`;
     }
     private buildNutritionPrompt(request: NutritionAnalysisRequest): string {
@@ -323,6 +322,25 @@ export class GptService implements OnModuleInit {
 
     private generateFallbackRecipe(request: GenerateRecipeRequest): GeneratedRecipe {
         const mainIngredient = request.ingredients[0] || 'ingrédients mélangés';
+        
+        // Générer des temps variables selon le type de plat
+        let prepTime = 15;
+        let cookTime = 25;
+        
+        switch (request.recipeType) {
+            case 'Entrée':
+                prepTime = Math.floor(Math.random() * 10) + 10; // 10-20 min
+                cookTime = Math.floor(Math.random() * 15) + 10; // 10-25 min
+                break;
+            case 'Plat':
+                prepTime = Math.floor(Math.random() * 15) + 15; // 15-30 min
+                cookTime = Math.floor(Math.random() * 30) + 20; // 20-50 min
+                break;
+            case 'Dessert':
+                prepTime = Math.floor(Math.random() * 20) + 20; // 20-40 min
+                cookTime = Math.floor(Math.random() * 20) + 15; // 15-35 min
+                break;
+        }
 
         return {
             name: `${request.recipeType} aux ${mainIngredient}`,
@@ -340,8 +358,8 @@ export class GptService implements OnModuleInit {
                 Étape 5: Assaisonner avec sel, poivre et herbes de Provence.
                 Étape 6: Laisser mijoter jusqu'à cuisson complète.
                 Étape 7: Servir chaud avec accompagnement de votre choix.`,
-            preparationTime: 15,
-            cookingTime: 25,
+            preparationTime: prepTime,
+            cookingTime: cookTime,
         };
     }
 

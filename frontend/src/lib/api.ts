@@ -114,6 +114,10 @@ class ApiClient {
 
         return this.getRecipes(params);
     }
+
+    async getDietaryRestrictions() {
+        return this.request<string[]>('/recipes/dietary-restrictions');
+    }
 }
 
 export const api = new ApiClient(API_BASE_URL);
