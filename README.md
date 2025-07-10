@@ -36,11 +36,11 @@ cd Cooking-Airtable
 
 #### Backend (`backend/.env`)
 ```
-AIRTABLE_API_KEY=...
-AIRTABLE_BASE_ID=...
-OPENAI_API_KEY=...
-CORS_ORIGIN=http://localhost:3001
+AIRTABLE_API_KEY=your_airtable_api_key_here
+AIRTABLE_BASE_ID=your_airtable_base_id_here
+OPENAI_API_KEY=your_groq_api_key_here
 PORT=3001
+CORS_ORIGIN=http://localhost:3000
 ```
 
 #### Frontend (`frontend/.env.local`)
