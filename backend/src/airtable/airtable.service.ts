@@ -57,7 +57,6 @@ export class AirtableService {
         }
     }
     async searchRecipes(query: string) {
-        console.log(`Searching recipes with query: ${query}`);
         const records = await this.base('Recipes')
             .select({
                 filterByFormula: `OR(

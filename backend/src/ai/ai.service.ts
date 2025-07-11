@@ -217,7 +217,6 @@ export class GptService implements OnModuleInit {
 
     private extractJsonFromResponse(response: GroqResponse): string {
         try {
-            // Check if response has the expected structure
             if (!response.choices || !Array.isArray(response.choices) || response.choices.length === 0) {
                 throw new Error('Invalid response structure: missing choices array');
             }
@@ -233,7 +232,6 @@ export class GptService implements OnModuleInit {
                 throw new Error('Empty response content');
             }
 
-            // Rechercher le JSON entre accolades
             const jsonStart = cleaned.indexOf('{');
             const jsonEnd = cleaned.lastIndexOf('}');
 
@@ -271,7 +269,6 @@ export class GptService implements OnModuleInit {
             throw new Error('Invalid instructions');
         }
 
-        // Valeurs par défaut si manquantes
         if (typeof recipe.preparationTime !== 'number' || recipe.preparationTime < 0) {
             recipe.preparationTime = 20;
         }

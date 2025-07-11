@@ -149,7 +149,6 @@ export class RecipesService {
 
     async create(createRecipeDto: CreateRecipeDto): Promise<RecipeWithNutrition> {
         try {
-            console.log('Creating recipe with DTO:', createRecipeDto);
             // Generate recipe using AI
             const generatedRecipe = await this.gptService.generateRecipe({
                 ingredients: createRecipeDto.ingredients,
@@ -157,7 +156,6 @@ export class RecipesService {
                 dietaryRestrictions: createRecipeDto.dietaryRestrictions,
                 recipeType: createRecipeDto.recipeType,
             });
-            console.log('Generated Recipe:', generatedRecipe);
 
             // Filtrer les restrictions alimentaires pour ne garder que celles autorisées
             const allowedRestrictions = this.filterAllowedRestrictions(createRecipeDto.dietaryRestrictions || []);
@@ -239,7 +237,6 @@ export class RecipesService {
             'Sans noix'
         ];
 
-        // Mapping pour gérer les variations de noms
         const mapping: Record<string, string> = {
             'Végétalien': 'Vegan', // Normaliser Végétalien vers Vegan
         };
@@ -345,9 +342,6 @@ export class RecipesService {
                 dietaryRestrictions = record.fields.dietary_restrictions.split(',').map(r => r.trim());
             }
         }
-        console.log('dietaryRestrictions', dietaryRestrictions);
-        console.log('preparationTime', record.fields.preparation_time);
-        console.log('cookingTime', record.fields.cooking_time);
 
         return {
             id: record.id,

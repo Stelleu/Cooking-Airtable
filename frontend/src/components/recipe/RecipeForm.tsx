@@ -62,7 +62,6 @@ export function RecipeForm({ onSubmit, isLoading = false }: RecipeFormProps) {
         const loadDietaryRestrictions = async () => {
             try {
                 const restrictions = await api.getDietaryRestrictions();
-                console.log('Loaded dietary restrictions:', restrictions);
                 setDietaryRestrictions(restrictions);
             } catch (error) {
                 console.error('Erreur lors du chargement des restrictions alimentaires:', error);
@@ -102,10 +101,7 @@ export function RecipeForm({ onSubmit, isLoading = false }: RecipeFormProps) {
     };
 
     const handleFormSubmit = async (data: FormData) => {
-        console.log('Form data being submitted:', data);
-        console.log('Selected dietary restrictions from state:', selectedDietaryRestrictions);
-        
-        // S'assurer que les restrictions sont bien dans les données
+
         const formDataWithRestrictions = {
             ...data,
             dietaryRestrictions: selectedDietaryRestrictions || []
