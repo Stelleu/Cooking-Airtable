@@ -20,8 +20,9 @@ export function RecipeDetail({ recipe }: RecipeDetailProps) {
 
     const handleGenerateNutrition = async () => {
         setLoading(true);
+        const apiUrl = "http://localhost:3001/api";
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "/api"}/recipes/${recipe.id}/generate-nutrition`, {
+            const res = await fetch(`${apiUrl}/recipes/${recipe.id}/generate-nutrition`, {
                 method: "POST",
             });
             if (!res.ok) throw new Error("Erreur lors de la génération");

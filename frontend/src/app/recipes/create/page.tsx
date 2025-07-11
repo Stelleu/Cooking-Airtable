@@ -1,5 +1,4 @@
 "use client";
-import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { RecipeForm } from "@/components/recipe/RecipeForm";
@@ -7,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { api } from "@/lib/api";
+import { RecipeWithNutrition } from "@/types/recipe.types";
 
 interface CreateRecipeData {
     ingredients: string[];
@@ -19,7 +19,7 @@ export default function CreateRecipePage() {
     const router = useRouter();
     const queryClient = useQueryClient();
 
-    const createRecipeMutation = useMutation({
+    const createRecipeMutation = useMutation<RecipeWithNutrition, Error, CreateRecipeData>({
         mutationFn: (data: CreateRecipeData) => api.createRecipe(data),
         onSuccess: (recipe) => {
             queryClient.invalidateQueries({ queryKey: ["recipes"] });
@@ -43,7 +43,7 @@ export default function CreateRecipePage() {
                 <div>
                     <h1 className="text-3xl font-bold">Créer une Nouvelle Recette</h1>
                     <p className="text-muted-foreground">
-                        Laissez l'IA créer une recette personnalisée pour vous
+                        Laissez l&apos;IA créer une recette personnalisée pour vous
                     </p>
                 </div>
             </div>
@@ -58,7 +58,7 @@ export default function CreateRecipePage() {
             {createRecipeMutation.error && (
                 <div className="text-center">
                     <p className="text-red-500">
-                        Une erreur s'est produite : {createRecipeMutation.error.message}
+                        Une erreur s&apos;est produite : {createRecipeMutation.error.message}
                     </p>
                 </div>
             )}

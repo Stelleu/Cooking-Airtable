@@ -9,6 +9,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ArrowLeft, AlertCircle } from "lucide-react";
 import Link from "next/link";
 import { api } from "@/lib/api";
+import { RecipeWithNutrition } from "@/types/recipe.types";
 
 export default function RecipeDetailPage() {
     const params = useParams();
@@ -18,7 +19,7 @@ export default function RecipeDetailPage() {
         queryKey: ["recipe", recipeId],
         queryFn: () => api.getRecipe(recipeId),
         enabled: !!recipeId,
-    });
+    }) as { data: RecipeWithNutrition | undefined, isLoading: boolean, error: unknown };
 
     if (isLoading) {
         return (
@@ -54,7 +55,7 @@ export default function RecipeDetailPage() {
                 <Alert variant="destructive">
                     <AlertCircle className="h-4 w-4" />
                     <AlertDescription>
-                        Cette recette n'existe pas ou a été supprimée.
+                        Cette recette n&apos;existe pas ou a été supprimée.
                     </AlertDescription>
                 </Alert>
 
@@ -63,10 +64,6 @@ export default function RecipeDetailPage() {
                 </Link>
             </div>
         );
-    }
-
-    if (!recipe) {
-        return null;
     }
 
     return (
@@ -87,7 +84,7 @@ export default function RecipeDetailPage() {
             </div>
 
             {/* Recipe Detail */}
-            <RecipeDetail recipe={recipe} />
+            {recipe && <RecipeDetail recipe={recipe} />}
         </div>
     );
 }

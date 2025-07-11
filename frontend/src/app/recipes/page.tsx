@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { RecipeCard } from "@/components/recipe/RecipeCard";
 import { RecipeSearch } from "@/components/search/RecipeSearch";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ import { Plus, AlertCircle } from "lucide-react";
 import Link from "next/link";
 import { api } from "@/lib/api";
 import { Recipe } from "@/types/recipe.types";
+import { toast } from "sonner";
 
 interface SearchFilters {
     name: string;
@@ -26,14 +27,40 @@ export default function RecipesPage() {
         recipeType: "",
         dietaryRestrictions: [],
     });
-
     const { data: recipes, isLoading, error, refetch } = useQuery({
         queryKey: ["recipes", searchFilters],
         queryFn: () => api.searchRecipes(searchFilters),
     });
+    // On utilise la liste optimiste pour l'affichage et le compteur
+    const [optimisticRecipes, setOptimisticRecipes] = useState<Recipe[] | null>(null);
+
+    useEffect(() => {
+        if (recipes) setOptimisticRecipes(recipes);
+    }, [recipes]);
+
+    const deleteMutation = useMutation({
+        mutationFn: async (id: string) => {
+            await api.deleteRecipe(id);
+            return id;
+        },
+        onMutate: async (id: string) => {
+            setOptimisticRecipes((prev) => prev ? prev.filter(r => r.id !== id) : prev);
+        },
+        onSuccess: () => {
+            toast.success("Recette supprimée avec succès");
+        },
+        onError: () => {
+            toast.error("Erreur lors de la suppression");
+            setOptimisticRecipes(recipes || null);
+        },
+    });
 
     const handleSearch = (filters: SearchFilters) => {
         setSearchFilters(filters);
+    };
+
+    const handleDelete = (id: string) => {
+        deleteMutation.mutate(id);
     };
 
     if (error) {
@@ -69,7 +96,7 @@ export default function RecipesPage() {
                 <div>
                     <h1 className="text-3xl font-bold">Mes Recettes</h1>
                     <p className="text-muted-foreground">
-                        {recipes ? `${recipes.length} recette(s) trouvée(s)` : "Chargement..."}
+                        {optimisticRecipes ? `${optimisticRecipes.length} recette(s) trouvée(s)` : "Chargement..."}
                     </p>
                 </div>
                 <Link href="/recipes/create">
@@ -94,10 +121,10 @@ export default function RecipesPage() {
                         </div>
                     ))}
                 </div>
-            ) : recipes && recipes.length > 0 ? (
+            ) : optimisticRecipes && optimisticRecipes.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {recipes.map((recipe: Recipe) => (
-                        <RecipeCard key={recipe.id} recipe={recipe} />
+                    {optimisticRecipes.map((recipe: Recipe) => (
+                        <RecipeCard key={recipe.id} recipe={recipe} onDelete={handleDelete} />
                     ))}
                 </div>
             ) : (

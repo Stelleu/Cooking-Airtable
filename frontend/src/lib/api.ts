@@ -1,3 +1,5 @@
+import { RecipeWithNutrition, Recipe } from "@/types/recipe.types";
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 
 interface ApiError extends Error {
@@ -32,7 +34,7 @@ class ApiClient {
             }
 
             const data = await response.json();
-            return data;
+            return data as T;
         } catch (error) {
             if (error instanceof Error) {
                 throw error;
@@ -42,7 +44,7 @@ class ApiClient {
     }
 
     // Recipes endpoints
-    async getRecipes(params?: Record<string, any>) {
+    async getRecipes(params?: Record<string, unknown>): Promise<Recipe[]> {
         const queryParams = new URLSearchParams();
 
         if (params) {
@@ -60,11 +62,11 @@ class ApiClient {
         const queryString = queryParams.toString();
         const endpoint = `/recipes${queryString ? `?${queryString}` : ''}`;
 
-        return this.request(endpoint);
+        return this.request<Recipe[]>(endpoint);
     }
 
-    async getRecipe(id: string) {
-        return this.request(`/recipes/${id}`);
+    async getRecipe(id: string): Promise<RecipeWithNutrition> {
+        return this.request<RecipeWithNutrition>(`/recipes/${id}`);
     }
 
     async createRecipe(data: {
@@ -72,8 +74,8 @@ class ApiClient {
         servings: number;
         dietaryRestrictions?: string[];
         recipeType: string;
-    }) {
-        return this.request('/recipes', {
+    }): Promise<RecipeWithNutrition> {
+        return this.request<RecipeWithNutrition>('/recipes', {
             method: 'POST',
             body: JSON.stringify(data),
         });
@@ -86,17 +88,23 @@ class ApiClient {
         servings: number;
         dietaryRestrictions: string[];
         recipeType: string;
-    }>) {
-        return this.request(`/recipes/${id}`, {
+    }>): Promise<Recipe> {
+        return this.request<Recipe>(`/recipes/${id}`, {
             method: 'PATCH',
             body: JSON.stringify(data),
         });
     }
 
-    async deleteRecipe(id: string) {
-        return this.request(`/recipes/${id}`, {
-            method: 'DELETE',
-        });
+    async deleteRecipe(id: string): Promise<void> {
+        const url = `${this.baseURL}/recipes/${id}`;
+        const response = await fetch(url, { method: 'DELETE', headers: { 'Content-Type': 'application/json' } });
+        if (!response.ok) {
+            const error: ApiError = new Error(`HTTP error! status: ${response.status}`);
+            error.status = response.status;
+            throw error;
+        }
+        // Pas de .json() ici car le backend renvoie probablement un 204 No Content
+        return;
     }
 
     async searchRecipes(filters: {
@@ -104,8 +112,8 @@ class ApiClient {
         ingredient?: string;
         recipeType?: string;
         dietaryRestrictions?: string[];
-    }) {
-        const params: Record<string, any> = {};
+    }): Promise<Recipe[]> {
+        const params: Record<string, unknown> = {};
 
         if (filters.name) params.name = filters.name;
         if (filters.ingredient) params.ingredient = filters.ingredient;
